@@ -1,0 +1,88 @@
+#!/bin/bash
+
+PORTAL2="$(eval echo ~$USER)/.local/share/Steam/steamapps/common/Portal 2"
+MOD="$PORTAL2/portal2_tempcontent"
+DIR="$(pwd)"
+
+# Build a package instead
+if [[ $1 == "package" ]]; then
+    echo Cleaning up previous package...
+    rm -rf _package
+
+    # Create the package structure
+    echo Creating package structure...
+    mkdir _package
+    mkdir -p _package/scripts/vscripts
+    cp -r src/* _package/scripts/vscripts/
+    cp -r configs _package/cfg
+    cp -r scripts/* _package/scripts/
+    vpk -cv 1 -c vpk/ _package/pak01_dir.vpk
+
+    # Create the packages
+    echo Creating packages...
+    tar -cJf lethalturrets.tar.xz -C _package .
+    tar -cf lethalturrets.sppkg lethalturrets.tar.xz manifest.json
+
+    # Cleanup
+    echo Cleaning up...
+    rm -rf _package
+    rm lethalturrets.tar.xz
+
+    echo Done!
+    exit 0
+fi
+
+# Cleanup previous environments
+echo "Cleaning up previous environment..."
+rm -rf "$MOD"
+rm -f "$DIR/scripts/vscripts"
+pkill -9 -f "portal2_linux"
+
+if [[ $1 == "clean" ]]; then
+    exit 0
+fi
+
+# Prepare the environment
+echo "Preparing the environment..."
+mkdir -p "$MOD/maps/soundcache/"
+ln -s "$PORTAL2/portal2_dlc2/maps/soundcache/_master.cache" "$MOD/maps/soundcache/_master.cache"
+
+# Link the resources
+echo "Linking the resources..."
+ln -s "$DIR/configs/" "$MOD/cfg"
+ln -s "$DIR/scripts/" "$MOD/scripts"
+
+# Link the sources
+echo "Linking the sources..."
+ln -s "$DIR/src" "$DIR/scripts/vscripts"
+
+# Create the package (pipx install vpk)
+echo "Creating the package..."
+vpk -cv 1 -c "$DIR/vpk/" "$MOD/pak01_dir.vpk"
+
+# Launch the game
+echo "Launching portal 2..."
+steam -applaunch 620 -tempcontent -netconport 5433
+until pgrep -x "portal2_linux" > /dev/null; do
+    sleep 1
+done
+
+echo
+echo "Press any key to connect to the netconport..."
+read -n 1 -s
+
+# Connect to the netconport
+echo "Connecting to netconport..."
+telnet 0.0.0.0 $(ss -n -lt -p src 0.0.0.0 dst 0.0.0.0 | grep portal2_linux | awk -F '  +' '{print $3}' | cut -d':' -f2)
+
+# Wait for the game to close
+echo "Waiting for portal 2 to close..."
+until ! pgrep -x "portal2_linux" > /dev/null; do
+    sleep 1
+done
+
+# Cleanup
+echo "Cleaning up..."
+rm -rf "$MOD"
+rm -f "$DIR/scripts/vscripts"
+pkill -9 -f "portal2_linux"

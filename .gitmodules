@@ -1,0 +1,3 @@
+[submodule "ppmod"]
+	path = ppmod
+	url = https://github.com/p2r3/ppmod.git
