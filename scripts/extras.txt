@@ -1,0 +1,20 @@
+"Extras"
+{
+
+        "Normal"
+        {
+                "title"         "Lethal Turrets"
+                "subtitle"      "Portal 2 with lethal company turrets!"
+                "command"       "exec normal"
+                "pic"           "vgui/chapters/chapter1"
+        }
+
+        "Debug"
+        {
+                "title"         "Triple Laser"
+                "subtitle"      "Testing map"
+                "command"       "exec debug"
+                "pic"           "vgui/extras/attract01"
+        }
+
+}
