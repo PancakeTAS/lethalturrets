@@ -14,6 +14,7 @@ if [[ $1 == "package" ]]; then
     mkdir _package
     mkdir -p _package/scripts/vscripts
     cp -r src/* _package/scripts/vscripts/
+    cp -r ppmod/ppmod4.nut _package/scripts/vscripts/
     cp -r configs _package/cfg
     cp -r scripts/* _package/scripts/
     vpk -cv 1 -c vpk/ _package/pak01_dir.vpk
@@ -55,6 +56,7 @@ ln -s "$DIR/scripts/" "$MOD/scripts"
 # Link the sources
 echo "Linking the sources..."
 ln -s "$DIR/src" "$DIR/scripts/vscripts"
+ln -s "$DIR/ppmod/ppmod4.nut" "$DIR/scripts/vscripts/ppmod4.nut"
 
 # Create the package (pipx install vpk)
 echo "Creating the package..."
