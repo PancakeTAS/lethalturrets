@@ -1,0 +1,5 @@
+"VertexLitGeneric"
+{
+	"$basetexture" "turret/turret_mat"
+	"$model" "1"
+}

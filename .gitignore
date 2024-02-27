@@ -1,3 +1,6 @@
 .vscode
 scripts/vscripts
-prepare/
+
+# Models and blender files
+*.smd
+*.blend1
