@@ -2,6 +2,10 @@
 const GUN_OFFSET = 47.6;
 /** Pan speed */
 const PAN_SPEED = 0.0125;
+const DETECTION_TICKS = 8; // 0.25 interval to check for player
+const LOSE_TARGET_TICKS = 60; // 2 seconds until lose target (if shooting)
+const FOCUS_TICKS = 45; // 1.5 seconds until shoot
+const BULLET_TICKS = 6; // 0.2 seconds for bullet
 
 /**
  * Create a turret entity
@@ -20,7 +24,12 @@ function newTurret(origin) {
  * @property {CBaseEntity} mount_ent The base mount of the turret
  * @property {number} pan The progress of the pan
  * @property {number} angle The angle of the turret
- *
+ * @property {CBaseEntity} target The target of the turret
+ * @property {number} currentState The current state of the turret
+ * @property {number} checkPlayerTicks The amount of ticks the turret has checked for the player
+ * @property {number} targetLoseTicks The amount of ticks the turret has lost the target
+ * @property {number} nextBulletTicks The amount of ticks until the next bullet is fired
+ * @property {number} focusTicks The amount of ticks the turret has been focused on the target
  */
 class Turret {
 
@@ -30,6 +39,12 @@ class Turret {
 
     pan = 0;
     angle = 0;
+
+    currentState = 1; // 0 = deactivated, 1 = detection, 2 = charging, 3 = firing, 4 = berserk
+    checkPlayerTicks = 0;
+    focusTicks = 0;
+    targetLoseTicks = 0;
+    nextBulletTicks = 0;
 
     /**
      * Create a new turret
@@ -69,21 +84,107 @@ class Turret {
     }
 
     /**
-     * Tick the turret
+     * Check if the player is in range of the turret
+     *
+     * @param {boolean} aim Whether to aim at the player
+     * @param {boolean} enlarge Whether to enlarge the radius of the check
      */
-    function tick() {
-        // pan the turret
-        this.pan += PAN_SPEED;
-        local lPanAng = sin(this.pan) * 90;
-        this.holder_ent.angles = "0 " + (lPanAng + this.angle - 180) + " 0";
+    function checkPlayer(aim, enlarge = false) {
+        // TODO: constants
 
-        // get angle to player
+        // calculate angle to player
         local lPlayer = GetPlayer().GetOrigin() - this.mount_ent.GetOrigin();
         local lPlayerAng = atan2(lPlayer.y, lPlayer.x) * 180/PI;
         local lDeltaAng = lPlayerAng - this.angle;
+
+        // aim at player
+        if (aim) {
+            lDeltaAng = atan2(sin(lDeltaAng * PI/180), cos(lDeltaAng * PI/180)) * 180/PI;
+            local newlDeltaAng = lDeltaAng;
+            if (enlarge)
+                newlDeltaAng = min(110, max(-110, lDeltaAng));
+            else
+                newlDeltaAng = min(90, max(-90, lDeltaAng));
+
+            if (newlDeltaAng != lDeltaAng)
+                aim = false;
+
+            this.holder_ent.angles = "0 " + (newlDeltaAng - 180) + " 0";
+        }
+
+        // check angle to player < 15
         lDeltaAng = atan2(sin(lDeltaAng * PI/180), cos(lDeltaAng * PI/180)) * 180/PI;
-        local panDelta = lDeltaAng - lPanAng;
-        printl(panDelta);
+        local panDelta = lDeltaAng - (sin(this.pan) * 90);
+        if (abs(panDelta) >= 15 && !aim)
+            return false;
+
+        // check distance to player < 500
+        if (lPlayer.Length() > 500)
+            return false;
+
+        // check line of sight
+        local trace = ppmod.ray(this.gun_ent.GetOrigin(), GetPlayer().GetOrigin());
+        if (trace.fraction < 1)
+            return false;
+
+        return true;
+    }
+
+    /**
+     * Tick the turret
+     */
+    function tick() {
+        switch (this.currentState) {
+            case 0: // TODO: deactivated
+                break;
+            case 1: // detection
+                // check for player
+                if (this.checkPlayerTicks++ >= DETECTION_TICKS) {
+                    this.checkPlayerTicks = 0;
+                    if (this.checkPlayer(false)) {
+                        this.currentState = 2;
+                        printl("Switching to charging");
+                    }
+                }
+
+                // pan the turret
+                this.pan += PAN_SPEED;
+                this.holder_ent.angles = "0 " + (sin(this.pan) * 90 + this.angle - 180) + " 0";
+                break;
+            case 2: // charging
+                // check for player
+                if (this.checkPlayer(true)) {
+                    // check if focused for long enough
+                    if (focusTicks++ >= FOCUS_TICKS) {
+                        this.focusTicks = 0;
+                        this.currentState = 3;
+                        printl("Switching to firing");
+                    }
+                } else {
+                    this.focusTicks = 0;
+                    this.currentState = 1;
+                    printl("Switching to detection");
+                }
+                break;
+            case 3: // firing
+                if (!this.checkPlayer(true, true)) {
+                    // check if lost target for too long
+                    if (this.targetLoseTicks++ >= LOSE_TARGET_TICKS) {
+                        this.targetLoseTicks = 0;
+                        this.currentState = 1;
+                        printl("Switching to detection");
+                    }
+                }
+
+                // check if should fire bullet
+                if (this.nextBulletTicks++ >= BULLET_TICKS) {
+                    this.nextBulletTicks = 0;
+                    print("F");
+                }
+                break;
+            case 4: // TODO: berserk
+                break;
+        }
     }
 
     /**
