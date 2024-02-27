@@ -72,21 +72,17 @@ class Turret {
      * Tick the turret
      */
     function tick() {
-        this.pan += PAN_SPEED;
-        if (this.target)
-            return;
-
         // pan the turret
-        local localPanAngle = sin(this.pan) * 90;
-        local globalPanAngle = localPanAngle + this.angle;
-        this.holder_ent.angles = "0 " + (globalPanAngle - 180) + " 0";
+        this.pan += PAN_SPEED;
+        local lPanAng = sin(this.pan) * 90;
+        this.holder_ent.angles = "0 " + (lPanAng + this.angle - 180) + " 0";
 
         // get angle to player
-        local deltaPlayerPos = GetPlayer().GetOrigin() - this.mount_ent.GetOrigin();
-        local deltaPlayerAngle = atan2(deltaPlayerPos.y, deltaPlayerPos.x) * 180/PI;
-        local localDeltaPlayerAngle = deltaPlayerAngle - this.angle;
-        localDeltaPlayerAngle = atan2(sin(localDeltaPlayerAngle * PI/180), cos(localDeltaPlayerAngle * PI/180)) * 180/PI;
-        local panDelta = localDeltaPlayerAngle - localPanAngle;
+        local lPlayer = GetPlayer().GetOrigin() - this.mount_ent.GetOrigin();
+        local lPlayerAng = atan2(lPlayer.y, lPlayer.x) * 180/PI;
+        local lDeltaAng = lPlayerAng - this.angle;
+        lDeltaAng = atan2(sin(lDeltaAng * PI/180), cos(lDeltaAng * PI/180)) * 180/PI;
+        local panDelta = lDeltaAng - lPanAng;
         printl(panDelta);
     }
 
