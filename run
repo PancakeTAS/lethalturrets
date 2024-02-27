@@ -61,6 +61,7 @@ ln -s "$DIR/ppmod/ppmod4.nut" "$DIR/scripts/vscripts/ppmod4.nut"
 # Create the package (pipx install vpk)
 echo "Creating the package..."
 vpk -cv 1 -c "$DIR/vpk/" "$MOD/pak01_dir.vpk"
+cp "$DIR/rsc/"* "$MOD" -r
 
 # Launch the game
 echo "Launching portal 2..."

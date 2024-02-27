@@ -1,5 +1,9 @@
+# Visual Studio Code files
 .vscode
+
+# Symlink files
 scripts/vscripts
+src/ppmod4.nut
 
 # Models and blender files
 *.smd
