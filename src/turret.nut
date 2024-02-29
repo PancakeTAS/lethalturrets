@@ -1,6 +1,8 @@
 const GUN_OFFSET = 47.6; // Offset between the turret base and gun. This is required in order to rotate the turret around the point where it's held
 
 const FOCUS_RADIUS = 33.0; // Amount of degrees the turret can focus on the player in
+const FOCUS_DISTANCE = 512.0; // Maximum distance the turret can focus on the player
+const FOCUS_HEIGHT = 72.0; // Maximum height difference the turret can focus on the player
 const MAX_ROTATION = 70.0; // Maximum amount of degrees the turret can rotate to the sides
 
 const CLOCKWISE_SWITCH_TICKS = 210; // 7 seconds until turret rotates the other direction
@@ -52,8 +54,8 @@ class Turret {
 
     // turret rotation
     turretAngle = 0;
-    currentRotation = 0;
-    targetRotation = 0;
+    currentRotation = Vector(0, 0);
+    targetRotation = Vector(0, 0);
     rotationSpeed = 0;
 
     // detection state
@@ -123,20 +125,18 @@ class Turret {
      * @param {boolean} height Whether to check the height of the player
      */
     function checkPlayer(aim = false, height = true) {
-        // TODO: constants
-
         // calculate angle to player
-        local playerOrigin = GetPlayer().GetOrigin();
+        local playerOrigin = GetPlayer().GetOrigin() + Vector(0, 0, 36);
         local playerDelta = playerOrigin - this.mount_ent.GetOrigin();
-        local playerAngle = (atan2(playerDelta.y, playerDelta.x) * 180/PI) - this.turretAngle - this.currentRotation;
+        local playerAngle = (atan2(playerDelta.y, playerDelta.x) * 180/PI) - this.turretAngle - this.currentRotation.x;
         playerAngle = atan2(sin(playerAngle * PI/180), cos(playerAngle * PI/180)) * 180/PI;
 
         // check angle to player
-        if (abs(playerAngle) >= FOCUS_RADIUS || playerAngle + this.currentRotation > MAX_ROTATION || playerAngle + this.currentRotation < -MAX_ROTATION)
+        if (abs(playerAngle) >= FOCUS_RADIUS || playerAngle + this.currentRotation.x > MAX_ROTATION || playerAngle + this.currentRotation.x < -MAX_ROTATION)
             return false;
 
-        // check distance to player < 500
-        if (playerDelta.Length() > 500)
+        // check distance to player
+        if (playerDelta.Length() > FOCUS_DISTANCE)
             return false;
 
         // check line of sight
@@ -145,12 +145,15 @@ class Turret {
             return false;
 
         // check if player is on same height level
-        if (height && abs(playerDelta.z) > 72)
+        if (height && abs(playerDelta.z) > FOCUS_HEIGHT)
             return false;
 
         // aim at player
-        if (aim)
-            this.targetRotation = max(-MAX_ROTATION, min(MAX_ROTATION, playerAngle + this.currentRotation));
+        if (aim) {
+            this.targetRotation.x = max(-MAX_ROTATION, min(MAX_ROTATION, playerAngle + this.currentRotation.x));
+            local angle = atan2(playerDelta.Length(), playerDelta.Length2D()) * 180/PI;
+            this.targetRotation.y = angle * 2 - 90;
+        }
 
         return true;
     }
@@ -187,7 +190,8 @@ class Turret {
                     this.clockwiseRotation = !this.clockwiseRotation;
                 }
 
-                this.targetRotation = max(-MAX_ROTATION, min(MAX_ROTATION, this.targetRotation + (this.clockwiseRotation ? rotationSpeed : -rotationSpeed)));
+                this.targetRotation.x = max(-MAX_ROTATION, min(MAX_ROTATION, this.targetRotation.x + (this.clockwiseRotation ? rotationSpeed : -rotationSpeed)));
+                this.targetRotation.y = 0;
                 break;
             case 2: // charging
                 // update variables
@@ -241,9 +245,10 @@ class Turret {
         }
 
         // rotate the turret
-        local deltaRotation = max(-rotationSpeed, min(rotationSpeed, this.targetRotation - this.currentRotation));
-        this.currentRotation += deltaRotation;
-        this.holder_ent.angles = "0 " + (this.currentRotation + this.turretAngle - 180) + " 0";
+        this.currentRotation.x += max(-rotationSpeed, min(rotationSpeed, this.targetRotation.x - this.currentRotation.x));
+        this.currentRotation.y += max(-rotationSpeed, min(rotationSpeed, this.targetRotation.y - this.currentRotation.y));
+        this.holder_ent.angles = "0 " + (this.currentRotation.x + this.turretAngle - 180) + " 0";
+        this.gun_ent.angles = this.currentRotation.y + " " + (this.currentRotation.x + this.turretAngle - 180) + " 0";
     }
 
     /**
