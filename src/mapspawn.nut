@@ -5,8 +5,14 @@ IncludeScript("turret");
 ::turret <- null;
 
 ppmod.onauto(function() {
+    // precache turret
+    ppmod.create("npc_portal_turret_floor").then(function (dummy) {
+        dummy.Destroy();
+    });
+
     newTurret(Vector(7983, -5849, 0)).then(function (turret) {
         ::turret = turret;
+        turret.rotate(110);
     });
 });
 

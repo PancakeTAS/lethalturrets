@@ -17,6 +17,7 @@ const CHARGING_ROTATION_SPEED = 3.1666666666666667; // 95 degrees per second
 const TARGET_LOST_TICKS = 60; // 2 seconds until lose target (if shooting)
 
 const NEXT_BULLET_TICKS = 6; // 0.2 seconds for bullet
+const LOOP_FIRE_TICKS = 54; // 1.81 seconds for bullet loop
 
 /**
  * Create a turret entity
@@ -33,17 +34,21 @@ function newTurret(origin) {
  * @property {CBaseEntity} gun_ent The gun part of the turret
  * @property {CBaseEntity} holder_ent The gun holding part of the turret
  * @property {CBaseEntity} mount_ent The base mount of the turret
+ * @property {CBaseEntity} light_ent The light entity of the turret
+ * @property {CBaseEntity} fire_ent The fire light entity of the turret
+ * @property {CBaseEntity} turret_ent The turret entity
  * @property {number} turretAngle The angle of the turret
- * @property {number} currentRotation The current rotation of the turret
- * @property {number} targetRotation The target rotation of the turret
+ * @property {Vector} currentRotation The current rotation of the turret
+ * @property {Vector} targetRotation The target rotation of the turret
  * @property {number} rotationSpeed The speed of the turret rotation
  * @property {boolean} clockwiseRotation Whether the turret is rotating clockwise
  * @property {number} clockwiseSwitchTicks The ticks until the turret switches rotation direction
  * @property {number} detectionTicks The ticks until the turret checks for the player
  * @property {number} chargingTicks The ticks until the turret starts shooting
- * @property {number} currentState The current state of the turret
  * @property {number} targetLostTicks The ticks until the turret loses the target
  * @property {number} nextBulletTicks The ticks until the turret fires the next bullet
+ * @property {number} loopFireTicks The ticks until the turret loops fire
+ * @property {number} currentState The current state of the turret
  */
 class Turret {
 
@@ -51,6 +56,8 @@ class Turret {
     holder_ent = null;
     mount_ent = null;
     light_ent = null;
+    fire_ent = null;
+    turret_ent = null;
 
     // turret rotation
     turretAngle = 0;
@@ -69,6 +76,7 @@ class Turret {
     // firing state
     targetLostTicks = 0;
     nextBulletTicks = 0;
+    loopFireTicks = 0;
 
     currentState = 1; // 0 = deactivated, 1 = detection, 2 = charging, 3 = firing, 4 = berserk
 
@@ -88,31 +96,56 @@ class Turret {
             yield ppmod.create("turret/turret_gun.mdl");
             inst.gun_ent = yielded;
             inst.gun_ent.SetOrigin(origin + Vector(0, 0, GUN_OFFSET));
-            this.gun_ent.SetAngles(0, -180, 0);
+            inst.gun_ent.SetAngles(0, -180, 0);
 
             yield ppmod.create("turret/turret_holder.mdl");
             inst.holder_ent = yielded;
             inst.holder_ent.SetOrigin(origin);
-            this.holder_ent.SetAngles(0, -180, 0);
+            inst.holder_ent.SetAngles(0, -180, 0);
 
             yield ppmod.create("turret/turret_mount.mdl");
             inst.mount_ent = yielded;
             inst.mount_ent.SetOrigin(origin);
-            this.mount_ent.SetAngles(0, -180, 0);
+            inst.mount_ent.SetAngles(0, -180, 0);
 
             yield ppmod.give("light_dynamic");
             inst.light_ent = yielded[0];
             inst.light_ent.SetOrigin(origin + Vector(-7.6, 1, 55));
-            this.light_ent.SetAngles(0, 0, 0);
+            inst.light_ent.SetAngles(0, 0, 0);
             inst.light_ent.Color("255 64 0");
             inst.light_ent.Brightness(5);
             inst.light_ent.Distance(64);
+
+            yield ppmod.give("light_dynamic");
+            inst.fire_ent = yielded[0];
+            inst.fire_ent.SetOrigin(origin + Vector(26, 0, 47.9));
+            inst.fire_ent.SetAngles(0, 0, 0);
+            inst.fire_ent.Color("255 0 0");
+            inst.fire_ent.Brightness(5);
+            inst.fire_ent.Distance(64);
+
+            yield ppmod.create("npc_portal_turret_floor");
+            inst.turret_ent = yielded;
+            inst.turret_ent.SetOrigin(origin + Vector(12, 0, 11));
+            inst.turret_ent.SetAngles(0, 0, 0);
+            inst.turret_ent.EnableGagging();
+            inst.turret_ent.UsedAsActor = true;
+            inst.turret_ent.DiasbleMotion = true;
+            inst.turret_ent.MaximumRange = 0;
+            inst.turret_ent.MoveType = 0;
+            inst.turret_ent.CollisionGroup = 10;
+            inst.turret_ent.RenderMode = 10;
+            inst.turret_ent.Disable();
 
             // parent entities
             inst.gun_ent.SetMoveParent(inst.holder_ent);
             inst.holder_ent.SetMoveParent(inst.mount_ent);
             inst.light_ent.SetMoveParent(inst.gun_ent);
+            inst.fire_ent.SetMoveParent(inst.gun_ent);
+            inst.turret_ent.SetMoveParent(inst.gun_ent);
+
             inst.light_ent.TurnOff();
+            inst.fire_ent.TurnOff();
 
             resolve(inst);
         }));
@@ -171,6 +204,7 @@ class Turret {
                 this.chargingTicks = 0;
                 this.targetLostTicks = 0;
                 this.nextBulletTicks = 0;
+                this.loopFireTicks = 0;
 
                 // check for player
                 if (this.detectionTicks++ >= DETECTION_TICKS) {
@@ -178,6 +212,7 @@ class Turret {
                     if (this.checkPlayer()) {
                         this.gun_ent.EmitSound("LethalTurrets.SeePlayer");
                         this.light_ent.TurnOn();
+                        this.fire_ent.TurnOff();
 
                         this.currentState = 2;
                         printl("Switching to charging");
@@ -200,19 +235,23 @@ class Turret {
                 this.clockwiseSwitchTicks = 0;
                 this.targetLostTicks = 0;
                 this.nextBulletTicks = 0;
+                this.loopFireTicks = 0;
 
                 // check for player
                 if (this.checkPlayer(true, false)) {
                     // check if focused for long enough
                     if (this.chargingTicks++ >= CHARGING_TICKS) {
                         this.gun_ent.EmitSound("LethalTurrets.Fire");
+                        GetPlayer().EmitSound("LethalTurrets.WallHits");
                         this.light_ent.TurnOn();
+                        this.fire_ent.TurnOff();
 
                         this.currentState = 3;
                         printl("Switching to firing");
                     }
                 } else {
                     this.light_ent.TurnOff();
+                    this.fire_ent.TurnOff();
 
                     this.currentState = 1;
                     printl("Switching to detection");
@@ -229,6 +268,7 @@ class Turret {
                 if (!this.checkPlayer(true, false))
                     if (this.targetLostTicks++ >= TARGET_LOST_TICKS) {
                         this.light_ent.TurnOff();
+                        this.fire_ent.TurnOff();
 
                         this.currentState = 1;
                         printl("Switching to detection");
@@ -237,7 +277,16 @@ class Turret {
                 // check if should fire bullet
                 if (this.nextBulletTicks++ >= NEXT_BULLET_TICKS) {
                     this.nextBulletTicks = 0;
+                    this.fire_ent.TurnOn();
+                    ppmod.fire(this.fire_ent, "TurnOff", "", FrameTime());
                     print("F");
+                }
+
+                // check if should loop fire
+                if (this.loopFireTicks++ >= LOOP_FIRE_TICKS) {
+                    this.loopFireTicks = 0;
+                    this.gun_ent.EmitSound("LethalTurrets.Fire");
+                    GetPlayer().EmitSound("LethalTurrets.WallHits");
                 }
                 break;
             case 4: // TODO: berserk
@@ -249,6 +298,12 @@ class Turret {
         this.currentRotation.y += max(-rotationSpeed, min(rotationSpeed, this.targetRotation.y - this.currentRotation.y));
         this.holder_ent.angles = "0 " + (this.currentRotation.x + this.turretAngle - 180) + " 0";
         this.gun_ent.angles = this.currentRotation.y + " " + (this.currentRotation.x + this.turretAngle - 180) + " 0";
+
+        // manage the turret laser
+        if (this.currentState >= 2)
+            this.turret_ent.angles = (-this.currentRotation.y * 3.5) + " " + (this.currentRotation.x + this.turretAngle) + " 0";
+        else
+            this.turret_ent.angles = (-this.currentRotation.y * 3.5) + " " + (this.currentRotation.x + this.turretAngle - 180) + " 0";
     }
 
     /**
