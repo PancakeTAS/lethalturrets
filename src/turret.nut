@@ -215,7 +215,6 @@ class Turret {
                         this.fire_ent.TurnOff();
 
                         this.currentState = 2;
-                        printl("Switching to charging");
                     }
                 }
 
@@ -247,14 +246,12 @@ class Turret {
                         this.fire_ent.TurnOff();
 
                         this.currentState = 3;
-                        printl("Switching to firing");
                     }
                 } else {
                     this.light_ent.TurnOff();
                     this.fire_ent.TurnOff();
 
                     this.currentState = 1;
-                    printl("Switching to detection");
                 }
                 break;
             case 3: // firing
@@ -265,26 +262,33 @@ class Turret {
                 this.clockwiseSwitchTicks = 0;
 
                 // check if lost target for too long
-                if (!this.checkPlayer(true, false))
+                if (!this.checkPlayer(true, false)) {
                     if (this.targetLostTicks++ >= TARGET_LOST_TICKS) {
                         this.light_ent.TurnOff();
                         this.fire_ent.TurnOff();
 
                         this.currentState = 1;
-                        printl("Switching to detection");
                     }
+                } else {
+                    this.targetLostTicks = 0;
+                }
 
                 // check if should fire bullet
                 if (this.nextBulletTicks++ >= NEXT_BULLET_TICKS) {
                     this.nextBulletTicks = 0;
                     this.fire_ent.TurnOn();
                     ppmod.fire(this.fire_ent, "TurnOff", "", FrameTime());
-                    print("F");
+
+                    if (this.targetLostTicks == 0) {
+                        SendToConsole("hurtme 50");
+                        GetPlayer().EmitSound("Flesh.BulletImpact");
+                    }
                 }
 
                 // check if should loop fire
                 if (this.loopFireTicks++ >= LOOP_FIRE_TICKS) {
                     this.loopFireTicks = 0;
+
                     this.gun_ent.EmitSound("LethalTurrets.Fire");
                     GetPlayer().EmitSound("LethalTurrets.WallHits");
                 }
