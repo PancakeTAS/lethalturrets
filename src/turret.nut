@@ -48,6 +48,7 @@ class Turret {
     gun_ent = null;
     holder_ent = null;
     mount_ent = null;
+    light_ent = null;
 
     // turret rotation
     turretAngle = 0;
@@ -97,12 +98,21 @@ class Turret {
             inst.mount_ent.SetOrigin(origin);
             this.mount_ent.SetAngles(0, -180, 0);
 
+            yield ppmod.give("light_dynamic");
+            inst.light_ent = yielded[0];
+            inst.light_ent.SetOrigin(origin + Vector(-7.6, 1, 55));
+            this.light_ent.SetAngles(0, 0, 0);
+            inst.light_ent.Color("255 64 0");
+            inst.light_ent.Brightness(5);
+            inst.light_ent.Distance(64);
+
             // parent entities
             inst.gun_ent.SetMoveParent(inst.holder_ent);
             inst.holder_ent.SetMoveParent(inst.mount_ent);
+            inst.light_ent.SetMoveParent(inst.gun_ent);
+            inst.light_ent.TurnOff();
 
             resolve(inst);
-
         }));
     }
 
@@ -164,6 +174,8 @@ class Turret {
                     this.detectionTicks = RandomInt(0, DETECTION_RAND_TICKS);
                     if (this.checkPlayer()) {
                         this.gun_ent.EmitSound("LethalTurrets.SeePlayer");
+                        this.light_ent.TurnOn();
+
                         this.currentState = 2;
                         printl("Switching to charging");
                     }
@@ -189,11 +201,15 @@ class Turret {
                 if (this.checkPlayer(true, false)) {
                     // check if focused for long enough
                     if (this.chargingTicks++ >= CHARGING_TICKS) {
-                        this.currentState = 3;
                         this.gun_ent.EmitSound("LethalTurrets.Fire");
+                        this.light_ent.TurnOn();
+
+                        this.currentState = 3;
                         printl("Switching to firing");
                     }
                 } else {
+                    this.light_ent.TurnOff();
+
                     this.currentState = 1;
                     printl("Switching to detection");
                 }
@@ -208,6 +224,8 @@ class Turret {
                 // check if lost target for too long
                 if (!this.checkPlayer(true, false))
                     if (this.targetLostTicks++ >= TARGET_LOST_TICKS) {
+                        this.light_ent.TurnOff();
+
                         this.currentState = 1;
                         printl("Switching to detection");
                     }
