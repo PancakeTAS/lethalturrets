@@ -77,6 +77,7 @@ class Turret {
     targetLostTicks = 0;
     nextBulletTicks = 0;
     loopFireTicks = 0;
+    wasOn = false;
 
     currentState = 1; // 0 = deactivated, 1 = detection, 2 = charging, 3 = firing, 4 = berserk
 
@@ -243,7 +244,6 @@ class Turret {
                         this.gun_ent.EmitSound("LethalTurrets.Fire");
                         GetPlayer().EmitSound("LethalTurrets.WallHits");
                         this.light_ent.TurnOn();
-                        this.fire_ent.TurnOff();
 
                         this.currentState = 3;
                     }
@@ -263,25 +263,29 @@ class Turret {
 
                 // check if lost target for too long
                 if (!this.checkPlayer(true, false)) {
-                    if (this.targetLostTicks++ >= TARGET_LOST_TICKS) {
-                        this.light_ent.TurnOff();
-                        this.fire_ent.TurnOff();
-
-                        this.currentState = 1;
-                    }
+                    if (this.targetLostTicks >= TARGET_LOST_TICKS || this.targetLostTicks == -1)
+                        this.targetLostTicks = -1;
+                    else
+                        this.targetLostTicks++;
                 } else {
                     this.targetLostTicks = 0;
                 }
 
+                // check if light should flicker
+                if (this.wasOn)
+                    this.fire_ent.TurnOn();
+                else
+                    this.fire_ent.TurnOff();
+                this.wasOn = !this.wasOn;
+
                 // check if should fire bullet
                 if (this.nextBulletTicks++ >= NEXT_BULLET_TICKS) {
                     this.nextBulletTicks = 0;
-                    this.fire_ent.TurnOn();
-                    ppmod.fire(this.fire_ent, "TurnOff", "", FrameTime());
 
                     if (this.targetLostTicks == 0) {
-                        SendToConsole("hurtme 50");
                         GetPlayer().EmitSound("Flesh.BulletImpact");
+
+                        SendToConsole("hurtme 50");
                     }
                 }
 
@@ -289,8 +293,17 @@ class Turret {
                 if (this.loopFireTicks++ >= LOOP_FIRE_TICKS) {
                     this.loopFireTicks = 0;
 
-                    this.gun_ent.EmitSound("LethalTurrets.Fire");
-                    GetPlayer().EmitSound("LethalTurrets.WallHits");
+                    // check if it has to exit now
+                    if (this.targetLostTicks == -1) {
+                        this.light_ent.TurnOff();
+                        this.fire_ent.TurnOff();
+
+                        this.currentState = 1;
+                    } else {
+                        this.gun_ent.EmitSound("LethalTurrets.Fire");
+                        GetPlayer().EmitSound("LethalTurrets.WallHits");
+                    }
+
                 }
                 break;
             case 4: // TODO: berserk
