@@ -6,12 +6,17 @@
 //
 // ========================
 
-//"Tile.StepLeft" {
-//	"volume" "0.0"
-//	"rndwave" {
-//		"wave"	"the/sound.wav"
-//	}
-//}
+"Tile.StepLeft" {
+	"volume" "0.0"
+	"rndwave" {
+		"wave"	")lethalturrets/activate/activate.wav"
+		"wave"	")lethalturrets/berserk/berserk.wav"
+		"wave"	")lethalturrets/deactivate/deactivate.wav"
+		"wave"	"^lethalturrets/fire/fire.wav"
+		"wave"	")lethalturrets/see_player/see_player.wav"
+		"wave"	")lethalturrets/wall_hits/wall_hits.wav"
+	}
+}
 
 // ========================
 //
@@ -20,6 +25,31 @@
 //
 //
 // ========================
+
+"LethalTurrets.Activate" {
+	"wave"	")lethalturrets/activate/activate.wav"
+}
+
+"LethalTurrets.Berserk" {
+	"wave"	")lethalturrets/berserk/berserk.wav"
+}
+
+"LethalTurrets.Deactivate" {
+	"wave"	")lethalturrets/deactivate/deactivate.wav"
+}
+
+"LethalTurrets.Fire" {
+	"soundlevel" "SNDLVL_GUNFIRE"
+	"wave"	"^lethalturrets/fire/fire.wav"
+}
+
+"LethalTurrets.SeePlayer" {
+	"wave"	")lethalturrets/see_player/see_player.wav"
+}
+
+"LethalTurrets.WallHits" {
+	"wave"	")lethalturrets/wall_hits/wall_hits.wav"
+}
 
 // ========================
 //
@@ -211,7 +241,7 @@
 	"channel"		"CHAN_STATIC"
 	"soundlevel"		"SNDLVL_GUNFIRE"
 	"wave"		"props/explosions/a4_semi_distant_explosion_01.wav"
-	
+
 	"soundentry_version" "2"
 
 	"operator_stacks"
@@ -219,7 +249,7 @@
 		"update_stack"
 		{
 			"import_stack" "p2_update_default"
-			
+
 			"mixer"
 			{
 				"mixgroup" "xLoud"
@@ -233,7 +263,7 @@
 	"channel"		"CHAN_STATIC"
 	"soundlevel"		"SNDLVL_GUNFIRE"
 	"wave"		"props/explosions/a4_semi_distant_explosion_02.wav"
-		
+
 	"soundentry_version" "2"
 
 	"operator_stacks"
@@ -241,7 +271,7 @@
 		"update_stack"
 		{
 			"import_stack" "p2_update_default"
-			
+
 			"mixer"
 			{
 				"mixgroup" "xLoud"
@@ -283,7 +313,7 @@
 	{
 		"start_stack"
 		{
-			"import_stack" 	"P2_null_start" //don't try to play wave			
+			"import_stack" 	"P2_null_start" //don't try to play wave
 		}
 	}
 }
